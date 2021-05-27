@@ -1,0 +1,173 @@
+# how to start the code
+# 1.use the above command to start the kafka server.
+#  bin/kafka-server-start.sh config/server.properties
+# 2. Start the zookeeper.
+# bin/zookeeper-server-start.sh config/zookeeper.properties
+# 3. To look for all the kafka topic logs use this command
+# bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
+# 4. command to create a kafka topic.
+# bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+# 5. List all the kafka topic.
+# bin/kafka-topics.sh --list --zookeeper localhost:2181
+# cxln1.c.thelab-240901.internal:localhost:9092
+
+
+# Import KafkaProducer from Kafka library
+import sys
+import time
+
+from kafka import KafkaProducer
+# Import KafkaConsumer from Kafka library
+from kafka import KafkaConsumer
+# Import JSON module to serialize data
+import json
+from datetime import datetime
+
+
+def kafka_producer():
+    # Initialize producer variable and set parameter for JSON encode
+    producer = KafkaProducer(bootstrap_servers=['10.148.41.13:9092'],
+                             api_version=(0, 11, 5),
+                             value_serializer=lambda x: json.dumps(x).encode('utf-8'))
+
+    # Send data in JSON format
+    file_location = "/home/nineleaps/Downloads/people.json"
+    with open(file_location) as f:
+        data = json.load(f)
+        count = 0
+        for i in data:
+            if count == 5:
+                kafka_consumer()
+                time.sleep(1)
+                count = 0
+            i.update({'time_stamp': str(datetime.now())})
+            producer.send('test1', i)
+            count = count + 1
+    f.close()
+    # Print message
+    print("Message Sent to Kafka ")
+    producer.flush()
+
+
+def kafka_consumer():
+    # Initialize consumer variable and set property for JSON decode
+    # To consume latest messages and auto-commit offsets
+    consumer = KafkaConsumer('test1',
+                             group_id='my-group',
+                             bootstrap_servers=['10.148.41.13:9092'])
+    count = 0
+    for message in consumer:
+        # message value and key are raw bytes -- decode if necessary!
+        # e.g., for unicode: `message.value.decode('utf-8')`
+        count = count + 1
+        if count == 5:
+            consumer.close()
+        print("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition,
+                                             message.offset, message.key,
+                                             message.value))
+
+    return print("Received Message")
+
+    # consume earliest available messages, don't commit offsets
+    # KafkaConsumer(auto_offset_reset='earliest', enable_auto_commit=False)
+
+    # consume json messages
+    # KafkaConsumer(value_deserializer=lambda m: json.loads(m.decode('ascii')))
+
+    # StopIteration if no message after 1sec
+    # KafkaConsumer(consumer_timeout_ms=1000)
+
+    # Subscribe to a regex topic pattern
+    # consumer = KafkaConsumer()
+    # consumer.subscribe(pattern='%test%')
+    # sys.exit()
+
+
+if __name__ == '__main__':
+    kafka_producer()
+    # kafka_consumer()
+
+# from clicky import Clicky
+# from mykafka import MyKafka
+# import logging
+# import time
+# import os
+# from logging.config import dictConfig
+#
+#
+# class Main(object):
+#
+#     def __init__(self):
+#         if 'KAFKA_BROKERS' in os.environ:
+#             kafka_brokers = os.environ['KAFKA_BROKERS'].split(',')
+#         else:
+#             raise ValueError('KAFKA_BROKERS environment variable not set')
+#
+#         if 'SITE_ID' in os.environ:
+#             self.site_id = os.environ['SITE_ID']
+#         else:
+#             raise ValueError('SITE_ID environment variable not set')
+#
+#         if 'SITEKEY' in os.environ:
+#             self.sitekey = os.environ['SITEKEY']
+#         else:
+#             raise ValueError('SITEKEY environment variable not set')
+#
+#         logging_config = dict(
+#             version=1,
+#             formatters={
+#                 'f': {'format':
+#                       '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
+#             },
+#             handlers={
+#                 'h': {'class': 'logging.StreamHandler',
+#                       'formatter': 'f',
+#                       'level': logging.DEBUG}
+#             },
+#             root={
+#                 'handlers': ['h'],
+#                 'level': logging.DEBUG,
+#             },
+#         )
+#         self.logger = logging.getLogger()
+#
+#         dictConfig(logging_config)
+#         self.logger.info("Initializing Kafka Producer")
+#         self.logger.info("KAFKA_BROKERS={0}".format(kafka_brokers))
+#         self.mykafka = MyKafka(kafka_brokers)
+#
+#     def init_clicky(self):
+#         self.clicky = Clicky(self.site_id, self.sitekey)
+#         self.logger.info("Clicky Stats Polling Initialized")
+#
+#     def run(self):
+#         self.init_clicky()
+#         starttime = time.time()
+#         while True:
+#             data = self.clicky.get_pages_data()
+#             self.logger.info("Successfully polled Clicky pages data")
+#             self.mykafka.send_page_data(data)
+#             self.logger.info("Published page data to Kafka")
+#             time.sleep(300.0 - ((time.time() - starttime) % 300.0))
+#
+#
+# if __name__ == "__main__":
+#     logging.info("Initializing Clicky Stats Polling")
+#     main = Main()
+#     main.run()
+
+
+# from confluent_kafka import avro
+# from confluent_kafka.avro import AvroProducer
+# import csv
+#
+# AvroProducerConf = {'bootstrap.servers': 'kafka.meinkafkaserver.com:9092',
+#                     'schema.registry.url': 'http://schema-registry.meinregistryserver.com:80',
+#                     }
+# value_schema = avro.load('/home/nineleaps/Downloads/people.json')
+# avroProducer = AvroProducer(AvroProducerConf, default_value_schema=value_schema)
+# with open("/home/oliver/Dokumente/avro_daten/test.csv") as file:
+#     reader = csv.DictReader(file, delimiter=";")
+#     for row in reader:
+#         avroProducer.produce(topic="mein_topic", value=row)
+#         avroProducer.flush()
